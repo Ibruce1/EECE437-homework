@@ -43,14 +43,16 @@ static  CPU_STK       DriveTaskStk[TASK_STK_SIZE];
 static  void   MainTask        (void  *p_arg);
 static  void   DriveTask     (void  *p_arg);
 
-
 static  CPU_BOOLEAN   AppRobotLeftWheelFirstEdge;
 static  CPU_BOOLEAN   AppRobotRightWheelFirstEdge;
 
 int   left_pct = 0, right_pct = 0;
+int i=0;
 unsigned int   left_counts = 0, right_counts = 0;
 
 static  void  WheelSensorEnable (tSide );
+
+int distance[10];
 
 typedef struct
 {
@@ -86,7 +88,9 @@ int  main (void)
     
                 
                 
-                OSTaskCreate((OS_TCB     *)& MainTaskTCB,                // Create Main Task                       
+                OSTaskCreate((OS_TCB     *)& MainTaskTCB,                // Create Main Task   
+
+                    
                  (CPU_CHAR   *)"Main Task",
                  (OS_TASK_PTR )  MainTask,
                  (void       *) 0,
@@ -101,10 +105,12 @@ int  main (void)
                  (OS_ERR     *)&err);
   
     
-                OSTaskCreate((OS_TCB     *)& DriveTaskTCB,                // Create Drive Task                       
+                OSTaskCreate((OS_TCB     *)& DriveTaskTCB,                // Create Drive Task 
+
+                      
                  (CPU_CHAR   *)"Drive Task",
                  (OS_TASK_PTR )  DriveTask,
-                 (void       *) 0,
+                 (void       *) 2,
                  (OS_PRIO     ) DRIVE_TASK_PRIO,
                  (CPU_STK    *)& DriveTaskStk[0],
                  (CPU_STK_SIZE) TASK_STK_SIZE / 10u,
@@ -116,32 +122,56 @@ int  main (void)
                  (OS_ERR     *)&err);
        
        
-         
                
                
                
- 
-    BSP_Init();                                                 /* Initialize BSP functions                             */
-    CPU_Init();                                                 /* Initialize the uC/CPU services                       */
+    distance[0]=65;
+    distance[1]=72;
+    distance[2]=137;
+    distance[3]=158;
+    distance[4]=223;
+    distance[5]=247;
+    distance[6]=280;
+    distance[7]=283;
+
+    
+    BSP_Init();                                                 /* Initialize BSP functions    
+
+                         */
+    CPU_Init();                                                 /* Initialize the uC/CPU 
+
+services                       */
 
 
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_ETH);                  /* Enable and Reset the Ethernet Controller.            */
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ETH);                  /* Enable and Reset the 
+
+Ethernet Controller.            */
     SysCtlPeripheralReset(SYSCTL_PERIPH_ETH);
 
-    ulPHYMR0 = EthernetPHYRead(ETH_BASE, PHY_MR0);              /* Power Down PHY                                       */
+    ulPHYMR0 = EthernetPHYRead(ETH_BASE, PHY_MR0);              /* Power Down PHY              
+
+                         */
     EthernetPHYWrite(ETH_BASE, PHY_MR0, ulPHYMR0 | PHY_MR0_PWRDN);
     SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_ETH);
 
 
-    clk_freq = BSP_CPUClkFreq();                                /* Determine SysTick reference freq.                    */
-    cnts     = clk_freq / (CPU_INT32U)OSCfg_TickRate_Hz;        /* Determine nbr SysTick increments                     */
-    OS_CPU_SysTickInit(cnts);                                   /* Init uC/OS periodic time src (SysTick).              */
+    clk_freq = BSP_CPUClkFreq();                                /* Determine SysTick reference 
+
+freq.                    */
+    cnts     = clk_freq / (CPU_INT32U)OSCfg_TickRate_Hz;        /* Determine nbr SysTick 
+
+increments                     */
+    OS_CPU_SysTickInit(cnts);                                   /* Init uC/OS periodic time 
+
+src (SysTick).              */
     CPU_TS_TmrFreqSet(clk_freq);
 
  
  
      //printf(" Running OS...\n");
-    OSStart(&err);                                              /* Start multitasking (i.e. give control to uC/OS-III). */
+    OSStart(&err);                                              /* Start multitasking (i.e. 
+
+give control to uC/OS-III). */
 }
 
 
@@ -162,7 +192,9 @@ static  void   MainTask (void  *p_arg)
      WheelSensorEnable(LEFT_SIDE);
      WheelSensorEnable(RIGHT_SIDE);
     
-    while (DEF_ON) {                                            /* Task body, always written as an infinite loop.       */
+    while (DEF_ON) {                                            /* Task body, always written 
+
+as an infinite loop.       */
         OSTimeDlyHMSM(0u, 0u, 1u, 0u,
                       OS_OPT_TIME_HMSM_STRICT,
                       &err);
@@ -218,7 +250,9 @@ static  void   DriveTask (void  *p_arg)
     
     
     
-    while (DEF_ON) {                                            /* Task body, always written as an infinite loop.       */
+    while (DEF_ON) {                                            /* Task body, always written 
+
+as an infinite loop.       */
         //OSTimeDlyHMSM(0u, 0u, 0u, 200u,
         //              OS_OPT_TIME_HMSM_STRICT,
         //              &err);
@@ -271,56 +305,9 @@ static  void   DriveTask (void  *p_arg)
     
         // Pend on task queue - to get message 
        
-        pulse_time = (CPU_INT32U)OSTaskQPend((OS_TICK      )OSCfg_TickRate_Hz/2,
-                                 (OS_OPT       )OS_OPT_PEND_BLOCKING,
-                                 (OS_MSG_SIZE *)&msg_size,
-                                 (CPU_TS      *)&ts,
-                                 (OS_ERR      *)&err);
-        
-        if (pulse_time) {
-                right_counts++;
-                right_counts %= 1000;
-        }
-        if (left_counts==65)
-        {
-          BSP_MotorDir(LEFT_SIDE, REVERSE);
 
-        }
-        if (left_counts==72)
-        {
-          BSP_MotorDir(LEFT_SIDE, FORWARD);
-        }
-        if(left_counts==137)
-        {
-          BSP_MotorDir(RIGHT_SIDE, REVERSE);
-        }
-        if(left_counts==144)
-        {
-          BSP_MotorDir(RIGHT_SIDE, FORWARD);
-        }
-        if(left_counts==209)
-        {
-          BSP_MotorDir(RIGHT_SIDE, REVERSE);
-        }
-        if(left_counts==212)
-        {
-          BSP_MotorDir(RIGHT_SIDE, FORWARD);
-        }
-        if(left_counts==245)
-        {
-          BSP_MotorDir(LEFT_SIDE, REVERSE);
-        }
-        if(left_counts==248)
-        {
-          BSP_MotorDir(LEFT_SIDE, FORWARD);
-        }
-        if(left_counts==345)
-        {
-          left_pct=0;
-          right_pct=0;
-        }
         
-        toggle_activate = (CPU_INT32U)OSTaskQPend((OS_TICK      )OSCfg_TickRate_Hz/2,
+      toggle_activate = (CPU_INT32U)OSTaskQPend((OS_TICK      )OSCfg_TickRate_Hz/2,
                                  (OS_OPT       )OS_OPT_PEND_BLOCKING,
                                  (OS_MSG_SIZE *)&msg_size,
                                  (CPU_TS      *)&ts,
@@ -330,23 +317,18 @@ static  void   DriveTask (void  *p_arg)
         {
           if(toggle_switch==0)
           {
-            BSP_MotorDir(RIGHT_SIDE, REVERSE);
+            BSP_MotorDir(LEFT_SIDE, REVERSE);
             toggle_switch=1;
           }
           else
           {
-            BSP_MotorDir(RIGHT_SIDE, FORWARD);
+            BSP_MotorDir(LEFT_SIDE, FORWARD);
             toggle_switch=0;
           }
           toggle_activate=0;
         }
         
     }
-}
-
-
-static void LeftWheelDrive()
-{
 }
 
 
@@ -369,38 +351,58 @@ static  void  WheelSensorIntHandler (void)
     ulStatus = GPIOPinIntStatus(LEFT_SIDE_SENSOR_PORT, DEF_TRUE);
     if (ulStatus & LEFT_SIDE_SENSOR_PIN) {
 
-        GPIOPinIntClear(LEFT_SIDE_SENSOR_PORT,                  /* Clear interrupt.                                     */
+        GPIOPinIntClear(LEFT_SIDE_SENSOR_PORT,                  /* Clear interrupt.            
+
+                         */
                         LEFT_SIDE_SENSOR_PIN);
         left_counts++;
         left_counts %= 1000;
         
-                                                                /* {Workaround}                                         */
+                                                                /* {Workaround}                
+
+                         */
 #ifdef NOT_NOW
-        for (ucCnt = 0u; ucCnt < 100u; ucCnt++) {               /* Check for pin high (rising edge).                    */
+        for (ucCnt = 0u; ucCnt < 100u; ucCnt++) {               /* Check for pin high (rising 
+
+edge).                    */
             if (!GPIOPinRead(LEFT_SIDE_SENSOR_PORT, LEFT_SIDE_SENSOR_PIN)) {
                 return;
             }
         }
 
-                                                                /* Check to make sure that the time since the last ...  */
-                                                                /* ... makes sense. This only matters if it is not ...  */
-                                                                /* ... the first edge.                                  */
+                                                                /* Check to make sure that the 
+
+time since the last ...  */
+                                                                /* ... makes sense. This only 
+
+matters if it is not ...  */
+                                                                /* ... the first edge.         
+
+                         */
         if (!AppRobotLeftWheelFirstEdge) {
             ulLeftEdgeTime = OSTimeGet(&err);
             if(ulLeftEdgeTime <= ulLeftEdgePrevTime) {
-                                                                /* Account for rollover.                                */
+                                                                /* Account for rollover.       
+
+                         */
                 ulLeftEdgeDiff = ulLeftEdgeTime + (0xFFFFFFFFu - ulLeftEdgePrevTime);
             } else {
                 ulLeftEdgeDiff = ulLeftEdgeTime - ulLeftEdgePrevTime; 
             }
 
-                                                                /* Is the time difference less than expected for ...    */
-                                                                /* ... the MAX_RPM + some buffer.                       */
+                                                                /* Is the time difference less 
+
+than expected for ...    */
+                                                                /* ... the MAX_RPM + some 
+
+buffer.                       */
             if ((ulLeftEdgeDiff) < (OSCfg_TickRate_Hz / (((MAX_RPM + 10u) * 8u) / 60u))) {
                 return;
             }
         }
-                                                                /* {Workaround End}                                     */
+                                                                /* {Workaround End}            
+
+                         */
 
         if (AppRobotLeftWheelFirstEdge) {
             ulLeftEdgePrevTime = OSTimeGet(&err);
@@ -408,7 +410,9 @@ static  void  WheelSensorIntHandler (void)
         } else {
             ulLeftEdgeTime = OSTimeGet(&err);
             if (ulLeftEdgeTime <= ulLeftEdgePrevTime) {
-                                                                /* Account for rollover.                                */
+                                                                /* Account for rollover.       
+
+                         */
                 ulLeftEdgeDiff  = ulLeftEdgeTime +
                                  (0xFFFFFFFFu - ulLeftEdgePrevTime);
             } else {
@@ -428,35 +432,55 @@ static  void  WheelSensorIntHandler (void)
     ulStatus = GPIOPinIntStatus(RIGHT_SIDE_SENSOR_PORT, DEF_TRUE);
     if (ulStatus & RIGHT_SIDE_SENSOR_PIN) {
 
-        GPIOPinIntClear(RIGHT_SIDE_SENSOR_PORT,                 /* Clear interrupt.                                     */
+        GPIOPinIntClear(RIGHT_SIDE_SENSOR_PORT,                 /* Clear interrupt.            
+
+                         */
                         RIGHT_SIDE_SENSOR_PIN);
         right_counts++;
         right_counts %= 1000;
-                                                               /* {Workaround}                                         */
-        for (ucCnt = 0u; ucCnt < 100u; ucCnt++) {               /* Check for pin high (rising edge).                    */
+                                                               /* {Workaround}                 
+
+                        */
+        for (ucCnt = 0u; ucCnt < 100u; ucCnt++) {               /* Check for pin high (rising 
+
+edge).                    */
             if (!GPIOPinRead(RIGHT_SIDE_SENSOR_PORT, RIGHT_SIDE_SENSOR_PIN)) {
                 return;
             }
         }
-                                                                /* Check to make sure that the time since the last ...  */
-                                                                /* ... makes sense. This only matters if it is not ...  */
-                                                                /* ... the first edge.                                  */
+                                                                /* Check to make sure that the 
+
+time since the last ...  */
+                                                                /* ... makes sense. This only 
+
+matters if it is not ...  */
+                                                                /* ... the first edge.         
+
+                         */
         if (!AppRobotRightWheelFirstEdge) {
             ulRightEdgeTime = OSTimeGet(&err);
             if (ulRightEdgeTime <= ulRightEdgePrevTime) {
-                                                                /* Account for rollover.                                */
+                                                                /* Account for rollover.       
+
+                         */
                 ulRightEdgeDiff  = ulRightEdgeTime + 
                                   (0xFFFFFFFFu - ulRightEdgePrevTime);
             } else {
                 ulRightEdgeDiff  = ulRightEdgeTime - ulRightEdgePrevTime; 
             }
-                                                                /* Is the time difference less than expected for ...    */
-                                                                /* ... the MAX_RPM + some buffer.                       */
+                                                                /* Is the time difference less 
+
+than expected for ...    */
+                                                                /* ... the MAX_RPM + some 
+
+buffer.                       */
             if((ulRightEdgeDiff) < (OSCfg_TickRate_Hz / (((MAX_RPM + 10u) * 8u) / 60u))) {
                 return;
             }
         }
-                                                                /* {Workaround End}                                     */
+                                                                /* {Workaround End}            
+
+                         */
 
         if (AppRobotRightWheelFirstEdge) {
             ulRightEdgePrevTime = OSTimeGet(&err);
@@ -466,7 +490,9 @@ static  void  WheelSensorIntHandler (void)
 
             ulRightEdgeTime = OSTimeGet(&err);
             if (ulRightEdgeTime <= ulRightEdgePrevTime) {
-                                                                /* Account for rollover.                                */
+                                                                /* Account for rollover.       
+
+                         */
                 ulRightEdgeDiff  = ulRightEdgeTime +
                                   (0xFFFFFFFFu - ulRightEdgePrevTime) + 1u;
 
@@ -483,11 +509,24 @@ static  void  WheelSensorIntHandler (void)
  
             // Post message indicating valid pulse
             ts = OS_TS_GET();      
-            /*OSTaskQPost((OS_TCB    *)&DriveTaskTCB,               
-                        (void      *)ts,
+        if (left_counts==distance[i])//compares number of wheel rotations to the needed 
+
+distance
+        {
+          i++;
+          OSTaskQPost((OS_TCB    *)&DriveTaskTCB, //calls the subfunction to reverse wheel 
+
+direction              
+                        (void      *)1,
                         (OS_MSG_SIZE)sizeof(CPU_TS),
                         (OS_OPT     )OS_OPT_POST_FIFO,
-                        (OS_ERR    *)&err);*/
+                        (OS_ERR    *)&err);
+        }
+        else if(left_counts==380)//ends the run at the end.
+        {
+          left_pct=0;//kills the left and right wheels motion
+          right_pct=0;
+        }
     
         }
 
@@ -499,20 +538,32 @@ static  void  WheelSensorEnable (tSide  eSide)
 {
     if (eSide == LEFT_SIDE) {
 
-        AppRobotLeftWheelFirstEdge = DEF_TRUE;                  /* Indicate the first edge has yet to occur.            */
+        AppRobotLeftWheelFirstEdge = DEF_TRUE;                  /* Indicate the first edge has 
 
-        BSP_WheelSensorEnable();                                /* Enable wheel sensors.                                */
+yet to occur.            */
 
-        BSP_WheelSensorIntEnable(LEFT_SIDE, LEFT_SIDE_SENSOR,   /* Enable wheel sensor interrupts.                      */
+        BSP_WheelSensorEnable();                                /* Enable wheel sensors.       
+
+                         */
+
+        BSP_WheelSensorIntEnable(LEFT_SIDE, LEFT_SIDE_SENSOR,   /* Enable wheel sensor 
+
+interrupts.                      */
                                  WheelSensorIntHandler);
 
     } else {
 
-        AppRobotRightWheelFirstEdge = DEF_TRUE;                 /* Indicate the first edge has yet to occur.            */
+        AppRobotRightWheelFirstEdge = DEF_TRUE;                 /* Indicate the first edge has 
 
-        BSP_WheelSensorEnable();                                /* Enable wheel sensors.                                */
+yet to occur.            */
 
-        BSP_WheelSensorIntEnable(RIGHT_SIDE, RIGHT_SIDE_SENSOR, /* Enable wheel sensor interrupts.                      */
+        BSP_WheelSensorEnable();                                /* Enable wheel sensors.       
+
+                         */
+
+        BSP_WheelSensorIntEnable(RIGHT_SIDE, RIGHT_SIDE_SENSOR, /* Enable wheel sensor 
+
+interrupts.                      */
                                  WheelSensorIntHandler);
     }
 }
